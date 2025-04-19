@@ -7,3 +7,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
+    packages:
+      - build-essential
+      - libatlas-base-dev
+      - python3-dev
