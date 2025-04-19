@@ -460,7 +460,7 @@ def process_camera():
         
         # Get image dimensions
         image_height, image_width, _ = image.shape
-        
+         
         # Draw a title on the image
         cv2.putText(image, "Hand Piano - Extend a finger to play a chord", (10, image_height - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
@@ -548,5 +548,13 @@ def handle_stop_camera():
     
     return {'status': 'error', 'message': 'Camera not running'}
 
+# Modified run section for production deployment
 if __name__ == '__main__':
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    # Check if running in development or production
+    if os.environ.get('RENDER', False):
+        # Production on Render
+        port = int(os.environ.get("PORT", 10000))
+        socketio.run(app, host='0.0.0.0', port=port)
+    else:
+        # Development mode
+        socketio.run(app, debug=True, allow_unsafe_werkzeug=True)

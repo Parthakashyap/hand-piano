@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: hand-piano
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class eventlet -w 1 app:app
+    envVars:
+      - key: RENDER
+        value: true
+      - key: PYTHON_VERSION
+        value: 3.9.0
+    healthCheckPath: /
