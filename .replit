@@ -1,7 +1,0 @@
-run = "python -m flask run --host=0.0.0.0 --port=8080"
-entrypoint = "app.py"
-
-[env]
-PYTHONPATH = "${PYTHONPATH}:${REPL_HOME}"
-FLASK_APP = "app.py"
-FLASK_ENV = "production"
