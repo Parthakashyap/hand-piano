@@ -535,7 +535,6 @@
                     <h2>Test Chords</h2>
                     <p>Click on any chord to hear how it sounds:</p>
                     <div class="test-buttons" id="testButtons">
-                        <!-- Test buttons will be added here by JavaScript -->
                     </div>
                 </div>
             </div>
@@ -584,10 +583,8 @@
     </div>
 
     <script>
-        // Connect to Socket.IO server
         const socket = io();
         
-        // DOM elements
         const videoElement = document.getElementById('videoElement');
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
@@ -599,25 +596,20 @@
         const loadingBarElement = document.getElementById('loadingBar');
         const testButtonsContainer = document.getElementById('testButtons');
         
-        // Mapping DOM elements
         const rightPalmMappings = document.getElementById('rightPalmMappings');
         const rightBackMappings = document.getElementById('rightBackMappings');
         const leftPalmMappings = document.getElementById('leftPalmMappings');
         const leftBackMappings = document.getElementById('leftBackMappings');
         
-        // Audio cache for storing loaded piano notes
         const audioCache = {};
         
-        // Define all piano notes used in chords
         const allNotes = [
             "C4", "D4", "E4", "F4", "G4", "A4", "B4",
             "C5", "D5", "E5",
             "Eb4", "Gb4", "Ab4", "Bb4", "Db5", "Eb5", "Gb5"
         ];
         
-        // Piano chord definitions (same as in Python code)
         const pianoChords = {
-            // Major chords
             "C_Major": ["C4", "E4", "G4"],
             "D_Major": ["D4", "Gb4", "A4"],  // Gb is F#
             "E_Major": ["E4", "Ab4", "B4"],  // Ab is G#
@@ -626,7 +618,6 @@
             "A_Major": ["A4", "Db5", "E5"],  // Db is C#
             "B_Major": ["B4", "Eb5", "Gb5"],  // Eb is D#, Gb is F#
             
-            // Minor chords
             "C_Minor": ["C4", "Eb4", "G4"],
             "D_Minor": ["D4", "F4", "A4"],
             "E_Minor": ["E4", "G4", "B4"],
@@ -636,7 +627,6 @@
             "B_Minor": ["B4", "D5", "Gb5"]  // Gb is F#
         };
         
-        // Preload all piano notes
         function preloadPianoNotes() {
             loadingNotesElement.style.display = 'block';
             audioStatusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading piano notes...';
@@ -645,27 +635,22 @@
             const totalNotes = allNotes.length;
             
             allNotes.forEach(note => {
-                // Format note name to match file name
                 let formattedNote = formatNoteName(note);
                 
-                // Create audio element
                 const audio = new Audio(`/static/piano-mp3/${formattedNote}.mp3`);
                 
-                // Handle loading events
                 audio.addEventListener('canplaythrough', () => {
                     loadedCount++;
                     const progress = Math.round((loadedCount / totalNotes) * 100);
                     loadingProgressElement.textContent = `${progress}%`;
                     loadingBarElement.value = progress;
                     
-                    // When all notes are loaded
                     if (loadedCount === totalNotes) {
                         loadingNotesElement.style.display = 'none';
                         audioStatusElement.innerHTML = '<i class="fas fa-check-circle"></i> Audio ready! Start camera to begin playing.';
                     }
                 });
                 
-                // Handle loading errors
                 audio.addEventListener('error', () => {
                     console.error(`Failed to load note: ${formattedNote}`);
                     loadedCount++;
@@ -674,65 +659,53 @@
                     loadingBarElement.value = progress;
                 });
                 
-                // Store in cache
                 audioCache[note] = audio;
                 
-                // Start loading
                 audio.load();
             });
         }
         
-        // Format note name for file paths
         function formatNoteName(noteName) {
-            if (noteName.includes('b')) {  // Handle flat notes
+            if (noteName.includes('b')) {  
                 return noteName;
             }
             return noteName;
         }
         
-        // Function to play a single note
         function playNote(noteName, volume = 0.5) {
             if (!audioCache[noteName]) {
                 console.error(`Note not found in cache: ${noteName}`);
                 return;
             }
             
-            // Clone the audio to allow overlapping sounds
             const audioToPlay = audioCache[noteName].cloneNode();
             audioToPlay.volume = volume;
             audioToPlay.play().catch(err => console.error('Error playing audio:', err));
         }
         
-        // Function to play a chord
         function playChord(chordName, volume = 0.5) {
             if (!pianoChords[chordName]) {
                 console.error(`Chord not found: ${chordName}`);
                 return;
             }
             
-            // Get notes for this chord
             const notes = pianoChords[chordName];
             
-            // Play each note
             notes.forEach(note => playNote(note, volume));
             
-            // Update display
             const displayChordName = chordName.replace('_', ' ');
             currentChordElement.innerHTML = `<i class="fas fa-music"></i> Playing: ${displayChordName} <small>(${notes.join(', ')})</small>`;
             
-            // Add a visual effect to the chord display
             currentChordElement.style.transform = 'scale(1.05)';
             setTimeout(() => {
                 currentChordElement.style.transform = 'scale(1)';
             }, 200);
             
-            // Clear the chord display after 2 seconds
             setTimeout(() => {
                 currentChordElement.textContent = '';
             }, 2000);
         }
         
-        // Button event listeners
         startButton.addEventListener('click', () => {
             socket.emit('start_camera', (response) => {
                 if (response && response.status === 'success') {
@@ -755,7 +728,6 @@
             });
         });
         
-        // Socket event listeners
         socket.on('connect', () => {
             console.log('Connected to server');
             loadChordMappings();
@@ -769,18 +741,14 @@
             stopButton.disabled = true;
         });
         
-        // Handle video frames from server
         socket.on('video_frame', (data) => {
             videoElement.src = 'data:image/jpeg;base64,' + data.frame;
         });
         
-        // Handle chord played events
         socket.on('chord_played', (data) => {
-            // Play the chord in the client browser
             playChord(data.chord_name.replace(' ', '_'));
         });
         
-        // Load chord mappings from server
         function loadChordMappings() {
             fetch('/get_chord_mappings')
                 .then(response => response.json())
@@ -795,7 +763,6 @@
                 });
         }
         
-        // Helper function to populate chord mapping sections
         function populateMappings(container, mappings, labelType) {
             container.innerHTML = '';
             
@@ -826,9 +793,7 @@
             }
         }
         
-        // Add test buttons for quick chord testing
         function addTestButtons() {
-            // Add a few test buttons for common chords
             const testChords = [
                 'C_Major', 'G_Major', 'A_Minor', 
                 'F_Major', 'D_Minor', 'E_Major',
@@ -848,7 +813,6 @@
             });
         }
         
-        // Add test buttons
         addTestButtons();
     </script>
 </body>

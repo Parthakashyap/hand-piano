@@ -22,7 +22,6 @@ try:
 except pygame.error:
     print("Warning: Pygame initialization failed. Audio playback may not work.")
 
-# Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -33,7 +32,6 @@ hands = mp_hands.Hands(
     min_tracking_confidence=0.5
 )
 
-# Simplified finger indices for display (0-5)
 simplified_fingers = {
     0: "Wrist",
     1: "Thumb",
@@ -43,7 +41,6 @@ simplified_fingers = {
     5: "Pinky"
 }
 
-# Landmark indices for each simplified finger
 finger_landmark_indices = {
     1: [1, 2, 3, 4],  # Thumb
     2: [5, 6, 7, 8],  # Index
@@ -52,8 +49,6 @@ finger_landmark_indices = {
     5: [17, 18, 19, 20]   # Pinky
 }
 
-# Define piano chords
-# Each chord is a list of notes
 piano_chords = {
     # Major chords
     "C_Major": ["C4", "E4", "G4"],
@@ -74,8 +69,6 @@ piano_chords = {
     "B_Minor": ["B4", "D5", "Gb5"]  # Gb is F#
 }
 
-# Map finger indices to chords for RIGHT HAND - PALM side (Major chords)
-# Skip thumb (1) and use fingers 2-5 only
 right_palm_chord_mapping = {
     2: "A_Major",  # Index -> A Major
     3: "B_Major",  # Middle -> B Major
@@ -83,7 +76,6 @@ right_palm_chord_mapping = {
     5: "D_Major"   # Pinky -> D Major
 }
 
-# Map finger indices to chords for RIGHT HAND - BACK side (Major chords)
 right_back_chord_mapping = {
     2: "E_Major",  # Index -> E Major
     3: "F_Major",  # Middle -> F Major
@@ -91,7 +83,6 @@ right_back_chord_mapping = {
     # No mapping for pinky on back side
 }
 
-# Map finger indices to chords for LEFT HAND - PALM side (Minor chords)
 left_palm_chord_mapping = {
     2: "A_Minor",  # Index -> A Minor
     3: "B_Minor",  # Middle -> B Minor
@@ -99,7 +90,6 @@ left_palm_chord_mapping = {
     5: "D_Minor"   # Pinky -> D Minor
 }
 
-# Map finger indices to chords for LEFT HAND - BACK side (Minor chords)
 left_back_chord_mapping = {
     2: "E_Minor",  # Index -> E Minor
     3: "F_Minor",  # Middle -> F Minor
@@ -107,17 +97,14 @@ left_back_chord_mapping = {
     # No mapping for pinky on back side
 }
 
-# Cache for loaded sounds
 sound_cache = {}
 
-# Global variables for tracking state
 finger_states = {}
 last_chord_time = 0
 chord_cooldown = 0.5  # seconds
 camera_running = False
 camera_thread = None
 
-# Function to load and play a piano note
 def load_piano_note(note_name):
     """Load a piano note from the piano-mp3 folder"""
     # Convert note name format (e.g., "C4" to "C4", "Gb4" to "Gb4")
@@ -131,11 +118,9 @@ def load_piano_note(note_name):
         octave = note_name[1] if len(note_name) > 1 else ""
         formatted_note = f"{note_letter}{octave}"
     
-    # Check if sound is already cached
     if formatted_note in sound_cache:
         return sound_cache[formatted_note]
     
-    # Try to load the sound
     file_path = os.path.join("static", "piano-mp3", f"{formatted_note}.mp3")
     if not os.path.exists(file_path):
         print(f"Warning: Sound file {file_path} not found")
@@ -155,20 +140,16 @@ def play_chord(chord_name, volume=0.5):
         print(f"Unknown chord: {chord_name}")
         return
     
-    # Get the notes for this chord
     notes = piano_chords[chord_name]
     
-    # Load and play each note
     for note in notes:
         sound = load_piano_note(note)
         if sound:
             sound.set_volume(volume)
             sound.play()
     
-    # Display the chord being played
     print(f"Playing {chord_name} chord: {', '.join(notes)}")
     
-    # Send chord info to the client
     chord_info = {
         'chord_name': chord_name.replace('_', ' '),
         'notes': notes
@@ -179,11 +160,9 @@ def play_chord_for_finger(finger_idx, orientation, handedness, should_play=True)
     """Play a chord based on which finger is extended, hand orientation, and handedness"""
     chord_name = None
     
-    # Skip thumb (finger_idx 1)
     if finger_idx == 1:
         return None
     
-    # Select the appropriate chord mapping based on handedness and orientation
     if handedness == "Right":
         if orientation == "Palm":
             chord_mapping = right_palm_chord_mapping
@@ -195,11 +174,9 @@ def play_chord_for_finger(finger_idx, orientation, handedness, should_play=True)
         else:  # "Back"
             chord_mapping = left_back_chord_mapping
     
-    # Check if this finger has a chord mapping
     if finger_idx in chord_mapping:
         chord_name = chord_mapping[finger_idx]
     
-    # Play the chord if requested and a valid chord was found
     if chord_name and should_play:
         play_chord(chord_name)
     
@@ -210,17 +187,14 @@ def is_finger_extended(landmarks, finger_idx, handedness):
     Check if a finger is extended based on its landmarks
     """
     if finger_idx == 1:  # Thumb
-        # For thumb, compare the tip position with the base of the index finger
         thumb_tip = landmarks.landmark[4]
         thumb_base = landmarks.landmark[2]
         
-        # Adjust the check based on whether it's a left or right hand
         if handedness == "Right":
             return thumb_tip.x < thumb_base.x
         else:  # Left hand
             return thumb_tip.x > thumb_base.x
     else:
-        # For other fingers, compare the tip's y position with the PIP joint (middle joint)
         finger_indices = finger_landmark_indices[finger_idx]
         tip_idx = finger_indices[-1]
         pip_idx = finger_indices[1]  # PIP joint (middle joint)
@@ -230,8 +204,6 @@ def is_finger_extended(landmarks, finger_idx, handedness):
         pip = landmarks.landmark[pip_idx]
         mcp = landmarks.landmark[mcp_idx]
         
-        # If the tip is higher (smaller y value) than the PIP joint, the finger is extended
-        # Also check that the finger is pointing upward
         return tip.y < pip.y and pip.y < mcp.y
 
 def detect_hand_orientation(landmarks, handedness):
@@ -241,19 +213,15 @@ def detect_hand_orientation(landmarks, handedness):
     This uses the relative positions of the wrist and knuckles to determine orientation.
     Returns: "Palm" or "Back"
     """
-    # Get key landmarks
     wrist = landmarks.landmark[0]
     index_mcp = landmarks.landmark[5]  # Index finger MCP (knuckle)
     middle_mcp = landmarks.landmark[9]  # Middle finger MCP
     ring_mcp = landmarks.landmark[13]  # Ring finger MCP
     pinky_mcp = landmarks.landmark[17]  # Pinky MCP
     
-    # Get thumb landmarks
     thumb_cmc = landmarks.landmark[1]  # Thumb CMC joint
     thumb_mcp = landmarks.landmark[2]  # Thumb MCP joint
     
-    # Create vectors in 3D space
-    # Vector from wrist to middle knuckle
     v_wrist_to_middle = np.array([
         middle_mcp.x - wrist.x,
         middle_mcp.y - wrist.y,
@@ -267,14 +235,10 @@ def detect_hand_orientation(landmarks, handedness):
         pinky_mcp.z - index_mcp.z
     ])
     
-    # Calculate the normal vector to the hand plane using cross product
     normal = np.cross(v_wrist_to_middle, v_index_to_pinky)
     
-    # Normalize the vector
     normal = normal / np.linalg.norm(normal)
     
-    # The sign of the z-component of the normal vector indicates palm vs back
-    # We need to adjust based on whether it's a left or right hand
     if handedness == "Right":
         return "Palm" if normal[2] > 0 else "Back"
     else:  # Left hand
@@ -361,7 +325,6 @@ def draw_hand_info(image, hand_landmarks, handedness, hand_idx, image_width, ima
             cv2.putText(image, chord_name, (tip_x + offset_x, tip_y + offset_y), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
     
-    # Display hand type (Left/Right) and orientation (Palm/Back)
     chord_type = "Minor" if handedness == "Left" else "Major"
     hand_text = f"{handedness} {orientation} ({chord_type} chords)"
     text_x = 10
@@ -369,7 +332,6 @@ def draw_hand_info(image, hand_landmarks, handedness, hand_idx, image_width, ima
     cv2.putText(image, hand_text, (text_x, text_y), 
                 cv2.FONT_HERSHEY_SIMPLEX, 1, hand_color, 2)
     
-    # Display extended fingers
     if extended_fingers:
         finger_names_text = ", ".join([simplified_fingers[idx] for idx in extended_fingers])
         count_text = f"Showing {len(extended_fingers)} fingers: {finger_names_text}"
@@ -379,15 +341,12 @@ def draw_hand_info(image, hand_landmarks, handedness, hand_idx, image_width, ima
     cv2.putText(image, count_text, (text_x, text_y + 30), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, hand_color, 2)
     
-    # Initialize variables
     chord_to_play = None
     current_time = time.time()
     can_play = (current_time - last_chord_time) >= chord_cooldown
     
-    # Create a unique key for this hand
     hand_key = f"{handedness}_{hand_idx}"
     
-    # Initialize finger states for this hand if not already present
     if hand_key not in finger_states:
         finger_states[hand_key] = {
             "last_extended": set(),
@@ -395,37 +354,29 @@ def draw_hand_info(image, hand_landmarks, handedness, hand_idx, image_width, ima
             "last_orientation": None
         }
     
-    # Update current extended fingers
     finger_states[hand_key]["current_extended"] = set(extended_fingers)
     current_orientation = orientation
     
-    # Check for newly extended fingers or reopened fingers
     newly_extended = set()
     for finger in finger_states[hand_key]["current_extended"]:
-        # If this finger wasn't extended before or the orientation changed
         if (finger not in finger_states[hand_key]["last_extended"] or 
             finger_states[hand_key]["last_orientation"] != current_orientation):
             newly_extended.add(finger)
     
-    # If we have newly extended fingers and can play a chord
     if newly_extended and can_play:
-        # Use the first newly extended finger to determine which chord to play
         first_finger = min(newly_extended)
         chord_to_play = play_chord_for_finger(first_finger, orientation, handedness, should_play=False)
         
-        # Display the chord being played
         if chord_to_play:
             chord_text = f"Playing: {chord_to_play.replace('_', ' ')} chord"
             cv2.putText(image, chord_text, (text_x, text_y + 60), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, hand_color, 2)
         else:
-            # If no chord is mapped for this finger/orientation
             if orientation == "Back" and first_finger == 5:
                 no_chord_text = "No chord mapped for pinky on back side"
                 cv2.putText(image, no_chord_text, (text_x, text_y + 60), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
     
-    # Update last extended fingers for next frame
     finger_states[hand_key]["last_extended"] = finger_states[hand_key]["current_extended"].copy()
     finger_states[hand_key]["last_orientation"] = current_orientation
     
@@ -492,20 +443,16 @@ def process_camera():
                     play_chord(chord_to_play)
                     last_chord_time = time.time()
         
-        # Convert the image to JPEG
         ret, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()
         
-        # Convert to base64 for sending to client
         encoded_frame = base64.b64encode(frame).decode('utf-8')
         socketio.emit('video_frame', {'frame': encoded_frame})
         
-        # Slight delay to reduce CPU usage
         time.sleep(0.03)
     
     cap.release()
 
-# Flask routes
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -520,7 +467,6 @@ def get_chord_mappings():
     }
     return jsonify(mappings)
 
-# Socket.IO events
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
@@ -552,13 +498,9 @@ def handle_stop_camera():
     
     return {'status': 'error', 'message': 'Camera not running'}
 
-# Modified run section for production deployment
 if __name__ == '__main__':
-    # Check if running in development or production
     if os.environ.get('RENDER', False):
-        # Production on Render
         port = int(os.environ.get("PORT", 10000))
         socketio.run(app, host='0.0.0.0', port=port)
     else:
-        # Development mode
         socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
