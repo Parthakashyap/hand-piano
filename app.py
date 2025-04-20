@@ -14,9 +14,13 @@ import json
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Initialize pygame mixer for audio playback
-pygame.mixer.init()
-pygame.init()
+# Initialize pygame mixer for audio playback with special handling for headless environments
+os.environ['SDL_AUDIODRIVER'] = 'dummy'  # Use dummy audio driver when no sound card is available
+try:
+    pygame.mixer.init()
+    pygame.init()
+except pygame.error:
+    print("Warning: Pygame initialization failed. Audio playback may not work.")
 
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
