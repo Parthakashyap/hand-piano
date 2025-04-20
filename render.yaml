@@ -4,11 +4,12 @@ services:
     env: python
     buildCommand: |
       /opt/render/project/src/.venv/bin/python3.9 -m pip install --upgrade pip
+      pip install --force-reinstall eventlet==0.33.1
       pip install -r requirements.txt
-    startCommand: gunicorn --worker-class gevent -w 1 app:app
+    startCommand: gunicorn --worker-class eventlet -w 1 app:app
     envVars:
       - key: RENDER
         value: true
       - key: PYTHON_VERSION
         value: 3.9.0
-    healthCheckPath: Deep research
+    healthCheckPath: /
